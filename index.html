@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Christmas Magic ✨</title>
+  <style>
+    :root {
+      --bg1: #001f3f;
+      --bg2: #0077b6;
+      --bg3: #90dbf4;
+      --fg: #ffffff;
+      --accent: #ffbe0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      background: radial-gradient(circle at top, var(--bg3), var(--bg2), var(--bg1));
+      color: var(--fg);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+
+    .card {
+      position: relative;
+      z-index: 3;
+      max-width: 520px;
+      margin: auto;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 2.75rem 2.25rem;
+      text-align: center;
+      border-radius: 1.5rem;
+      background: rgba(0,0,0,0.25);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.45);
+      animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(-50%) translateY(0); }
+      50% { transform: translateY(-50%) translateY(-12px); }
+    }
+
+    h1 {
+      font-size: clamp(2.2rem, 6vw, 3.2rem);
+      margin-bottom: 0.75rem;
+    }
+
+    p {
+      font-size: 1.15rem;
+      opacity: 0.95;
+    }
+
+    .year {
+      margin-top: 1.75rem;
+      font-size: 0.85rem;
+      letter-spacing: 0.3em;
+      opacity: 0.7;
+    }
+
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.8;
+      animation: twinkle linear infinite;
+      z-index: 0;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="fireworks"></canvas>
+
+  <div class="card">
+    <h1 id="headline">Merry Christmas 🎄</h1>
+    <p id="message">Wishing you warmth, joy, and a little magic.</p>
+    <div class="year" id="year"></div>
+  </div>
+
+  <script>
+    /* --------------------
+       RANDOMISED CONTENT
+    -------------------- */
+    const themes = [
+      { bg1: '#001f3f', bg2: '#0077b6', bg3: '#90dbf4', accent: '#ffbe0b' }, // summer evening beach
+      { bg1: '#0b525b', bg2: '#144552', bg3: '#ffd166', accent: '#ef476f' }, // sunset BBQ
+      { bg1: '#003049', bg2: '#d62828', bg3: '#fcbf49', accent: '#eae2b7' }, // classic kiwi summer
+      { bg1: '#2d6a4f', bg2: '#52b788', bg3: '#b7e4c7', accent: '#ffd166' }, // lush green outdoors
+    ];
+
+    const headlines = [
+      'Merry Christmas 🎄',
+      'Kiwi Christmas ☀️',
+      'Summer Christmas Vibes 🌊',
+      'Christmas in Jandals 🩴'
+    ];
+
+    const messages = [
+      'Hope this decoration found you between swims.',
+      'Christmas, but make it shorts and jandals.',
+      'Wishing you sunburn-free joy and cold drinks.',
+      'May the BBQ be hot and the beer be cold.',
+      'Summer nights, good company, Merry Christmas.',
+      'From our tree to your summer holiday.',
+    ];
+
+    const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+    const theme = pick(themes);
+    document.documentElement.style.setProperty('--bg1', theme.bg1);
+    document.documentElement.style.setProperty('--bg2', theme.bg2);
+    document.documentElement.style.setProperty('--bg3', theme.bg3);
+    document.documentElement.style.setProperty('--accent', theme.accent);
+
+    document.getElementById('headline').textContent = pick(headlines);
+    document.getElementById('message').textContent = pick(messages);
+    document.getElementById('year').textContent = `MERRY CHRISTMAS ${new Date().getFullYear()}`;
+
+    /* --------------------
+       TWINKLING STARS
+    -------------------- */
+    for (let i = 0; i < 80; i++) {
+      const star = document.createElement('div');
+      star.className = 'star';
+      star.style.left = Math.random() * 100 + 'vw';
+      star.style.top = Math.random() * 100 + 'vh';
+      star.style.animationDuration = 2 + Math.random() * 4 + 's';
+      document.body.appendChild(star);
+    }
+
+    /* --------------------
+       FIREWORKS (CANVAS)
+    -------------------- */
+    const canvas = document.getElementById('fireworks');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const fireworks = [];
+
+    function launchFirework() {
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * canvas.height * 0.5;
+      const particles = [];
+
+      for (let i = 0; i < 60; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3 + 2;
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 60
+        });
+      }
+      fireworks.push(particles);
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      fireworks.forEach((fw, fi) => {
+        fw.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life--;
+          ctx.fillStyle = `hsla(${Math.random()*360},100%,70%,0.9)`;
+          ctx.fillRect(p.x, p.y, 2, 2);
+        });
+        fireworks[fi] = fw.filter(p => p.life > 0);
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    setInterval(launchFirework, 900);
+
+    // launch one immediately so it's visible
+    launchFirework();
+    animate();
+  </script>
+</body>
+</html>
