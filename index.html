@@ -225,8 +225,9 @@
 
       // compute a vy that will reach roughly to targetY using kinematics
       const distance = Math.max(80, canvas.height - targetY);
-      // bias factor >1 so most rockets reach slightly above target
-      const factor = 1.2 + Math.random() * 0.6;
+      // bias factor near 1 so rockets reach the target height but without
+      // excessive speed; using values <1 makes ascent feel slower (distant)
+      const factor = 0.85 + Math.random() * 0.5;
       let vy = -Math.sqrt(2 * gravity * distance) * factor;
 
       let vx = (Math.random() - 0.5) * 80; // slight drift
@@ -234,9 +235,31 @@
       // apply global speed scaling to horizontal drift only (vertical computed from scaled gravity)
       vx *= SPEED_SCALE;
 
-      // calculate fuse from time-to-apex plus a small jitter (adjusted for scaled speeds)
+      // calculate fuse so explosion happens after apex + random 'fall' delay
       const timeToApex = (-vy) / gravity; // seconds
-      const fuse = Math.max(400, timeToApex * 1000 + 200 + Math.random() * 400);
+      // make the post-apex delay a bit shorter to keep explosions near the apex
+      const postApexDelay = 400 + Math.random() * 500; // 400ms - 900ms after apex
+      let fuse = Math.max(300, timeToApex * 1000 + postApexDelay);
+
+      // ensure predicted explosion Y isn't off-screen above the viewport
+      const startY = canvas.height + 5;
+      const predictY = (tMs) => startY + vy * (tMs / 1000) + 0.5 * gravity * Math.pow(tMs / 1000, 2);
+      const minY = 40; // don't explode higher than this
+      if (predictY(fuse) < minY) {
+        // solve quadratic for time when y = minY: 0.5 * g * t^2 + vy * t + (startY - minY) = 0
+        const a = 0.5 * gravity;
+        const b = vy;
+        const c = startY - minY;
+        const disc = b * b - 4 * a * c;
+        if (disc > 0) {
+          const t1 = (-b - Math.sqrt(disc)) / (2 * a);
+          const t2 = (-b + Math.sqrt(disc)) / (2 * a);
+          const t = Math.max(t1, t2); // choose the positive root
+          if (t > 0) {
+            fuse = Math.max(fuse, t * 1000 + 80); // add small buffer
+          }
+        }
+      }
 
       rockets.push({ x, y: canvas.height + 5, vx, vy, fuse, targetY, trail: [] });
     }
@@ -281,7 +304,7 @@
     let lastLaunch = performance.now() - 900; // allow immediate launch
     const launchInterval = 900; // ms
     // make overall motion slower for easier clicking on mobile
-    const SPEED_SCALE = 0.5; // 0.5 = 50% speed
+    const SPEED_SCALE = 0.3; // lower = slower (0.3 felt 'far away' slow)
     const gravity = 500 * SPEED_SCALE; // px/s^2 downward pull (scaled)
 
     function animate(now) {
@@ -324,8 +347,10 @@
         ctx.arc(r.x, r.y, 3, 0, Math.PI * 2);
         ctx.fill();
 
-        // conditions to auto-explode: fuse expired, reached its target height (above card), or very fast downward speed
-        if (r.fuse <= 0 || (r.targetY !== undefined && r.y < r.targetY) || r.vy > 1000) {
+        // conditions to auto-explode:
+        // - fuse expired AND rocket is falling (vy > 0)
+        // - or an extreme downward speed indicates it should explode now
+        if ((r.fuse <= 0 && r.vy > 0) || r.vy > 1000) {
           createExplosion(r.x, r.y);
           rockets.splice(i, 1);
         }
