@@ -69,6 +69,19 @@
       opacity: 0.7;
     }
 
+    .score {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 4;
+      padding: 6px 10px;
+      background: rgba(0,0,0,0.35);
+      border-radius: 8px;
+      font-weight: 600;
+      color: var(--fg);
+      pointer-events: none;
+    }
+
     .star {
       position: absolute;
       width: 2px;
@@ -158,7 +171,9 @@
     }
 
     /* --------------------
-       FIREWORKS (CANVAS)
+       FIREWORKS MINI-GAME (CANVAS)
+       - Rockets are launched from the bottom and explode into particles
+       - Click a moving rocket to explode it early and earn points
     -------------------- */
     const canvas = document.getElementById('fireworks');
     const ctx = canvas.getContext('2d');
@@ -170,69 +185,134 @@
     resize();
     window.addEventListener('resize', resize);
 
-    const fireworks = [];
+    const rockets = []; // rockets in flight (pre-explosion)
+    const fireworks = []; // arrays of particles (post-explosion)
 
-    function launchFirework(x = null, y = null) {
-      // if no coords provided, choose random position
-      if (x === null || y === null) {
-        x = Math.random() * canvas.width;
-        y = Math.random() * canvas.height * 0.5;
-      }
+    function createExplosion(x, y, count = 60) {
+      const lifeMs = 2000;
       const particles = [];
-      const lifeMs = 2000; // particle lifetime in ms
-
-      for (let i = 0; i < 60; i++) {
+      const hue = Math.random() * 360;
+      for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
         const speed = (Math.random() * 180) + 120; // px per second
         particles.push({
           x,
           y,
-          vx: Math.cos(angle) * speed, // px/s
-          vy: Math.sin(angle) * speed, // px/s
-          life: lifeMs
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: lifeMs,
+          h: hue
         });
       }
       fireworks.push(particles);
     }
-    
-    // trigger fireworks where user clicks/taps (but not when clicking the card)
+
+    function launchRocket(x = null) {
+      if (x === null) x = Math.random() * canvas.width;
+      const vy = - (420 + Math.random() * 300); // initial upward speed px/s
+      const vx = (Math.random() - 0.5) * 80; // slight drift
+      const fuse = 900 + Math.random() * 900; // ms until auto explode
+      rockets.push({ x, y: canvas.height + 5, vx, vy, fuse, trail: [] });
+    }
+
+    // score display
+    const scoreEl = document.createElement('div');
+    scoreEl.id = 'score';
+    scoreEl.className = 'score';
+    scoreEl.textContent = 'Score: 0';
+    document.body.appendChild(scoreEl);
+    let score = 0;
+    function updateScore() { scoreEl.textContent = 'Score: ' + score; }
+
+    // click / tap handler: click a rocket to explode it and score. No longer launches rockets on click.
     document.addEventListener('pointerdown', (ev) => {
       if (ev.target.closest && ev.target.closest('.card')) return; // ignore clicks on the card
-      // clientX/clientY are viewport coordinates; canvas matches viewport size
       const rect = canvas.getBoundingClientRect();
       const x = ev.clientX - rect.left;
       const y = ev.clientY - rect.top;
-      launchFirework(x, y);
-      lastLaunch = performance.now();
+
+      // check for rocket hits (allow small radius)
+      for (let i = rockets.length - 1; i >= 0; i--) {
+        const r = rockets[i];
+        const dx = r.x - x;
+        const dy = r.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 20) {
+          // hit - explode early
+          createExplosion(r.x, r.y);
+          rockets.splice(i, 1);
+          score++;
+          updateScore();
+          return;
+        }
+      }
+
+      // no hit: do nothing (clicks don't launch rockets anymore)
     });
-    
+
     let lastTime = performance.now();
     let lastLaunch = performance.now() - 900; // allow immediate launch
     const launchInterval = 900; // ms
-    const gravity = 180; // px/s^2 downward pull
+    const gravity = 500; // px/s^2 downward pull
 
     function animate(now) {
-      const delta = Math.min(now - lastTime, 100); // cap delta to avoid huge jumps
+      const delta = now - lastTime; // use real elapsed time so particles/rockets dissipate while tab isn't focused
       lastTime = now;
 
-      // launch control: only launch at most one per frame, and only driven by animate
+      // launch control: only launch at most one per interval
       if (now - lastLaunch >= launchInterval) {
-        launchFirework();
+        launchRocket();
         lastLaunch = now;
       }
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // update rockets (pre-explosion)
+      for (let i = rockets.length - 1; i >= 0; i--) {
+        const r = rockets[i];
+        const dt = delta / 1000;
+
+        // store a short trail of previous positions
+        r.trail.push({ x: r.x, y: r.y });
+        if (r.trail.length > 8) r.trail.shift();
+
+        r.x += r.vx * dt;
+        r.y += r.vy * dt;
+        r.vy += gravity * dt;
+        r.fuse -= delta;
+
+        // draw trail
+        for (let t = 0; t < r.trail.length; t++) {
+          const tt = r.trail[t];
+          const alpha = ((t + 1) / r.trail.length) * 0.6;
+          ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+          ctx.fillRect(tt.x, tt.y, 2, 2);
+        }
+
+        // draw rocket head
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // conditions to auto-explode: fuse expired, reached high altitude (near top), or very fast downward speed
+        if (r.fuse <= 0 || r.y < canvas.height * 0.25 || r.vy > 1000) {
+          createExplosion(r.x, r.y);
+          rockets.splice(i, 1);
+        }
+      }
+
+      // update fireworks (post-explosion particles)
       for (let fi = fireworks.length - 1; fi >= 0; fi--) {
         const fw = fireworks[fi];
 
         for (let i = fw.length - 1; i >= 0; i--) {
           const p = fw[i];
-          // update using real elapsed time
-          p.x += p.vx * (delta / 1000);
-          p.y += p.vy * (delta / 1000) + 0.5 * gravity * Math.pow(delta / 1000, 2);
-          // apply gravity to vy
-          p.vy += gravity * (delta / 1000);
+          const dt = delta / 1000;
+
+          p.x += p.vx * dt;
+          p.y += p.vy * dt + 0.5 * gravity * dt * dt;
+          p.vy += gravity * dt;
 
           p.life -= delta;
 
@@ -241,7 +321,8 @@
             continue;
           }
 
-          ctx.fillStyle = `hsla(${Math.random()*360},100%,70%,0.9)`;
+          const alpha = Math.max(0, p.life / 2000);
+          ctx.fillStyle = `hsla(${p.h},100%,70%,${alpha})`;
           ctx.fillRect(p.x, p.y, 2, 2);
         }
 
