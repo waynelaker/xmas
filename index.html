@@ -194,7 +194,8 @@
       const hue = Math.random() * 360;
       for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = (Math.random() * 180) + 120; // px per second
+        let speed = (Math.random() * 180) + 120; // px per second
+        speed *= SPEED_SCALE; // slow particle spread
         particles.push({
           x,
           y,
@@ -209,10 +210,35 @@
 
     function launchRocket(x = null) {
       if (x === null) x = Math.random() * canvas.width;
-      const vy = - (420 + Math.random() * 300); // initial upward speed px/s
-      const vx = (Math.random() - 0.5) * 80; // slight drift
-      const fuse = 900 + Math.random() * 900; // ms until auto explode
-      rockets.push({ x, y: canvas.height + 5, vx, vy, fuse, trail: [] });
+
+      // choose a target height that sits above the `.card` element so rockets
+      // reliably travel higher than the card (better for small screens)
+      const cardEl = document.querySelector('.card');
+      let targetY;
+      if (cardEl) {
+        const rect = cardEl.getBoundingClientRect();
+        // aim a bit above the card with a minimum margin to give clickable space
+        targetY = Math.max(40, rect.top - 80);
+      } else {
+        targetY = canvas.height * 0.25;
+      }
+
+      // compute a vy that will reach roughly to targetY using kinematics
+      const distance = Math.max(80, canvas.height - targetY);
+      // bias factor >1 so most rockets reach slightly above target
+      const factor = 1.2 + Math.random() * 0.6;
+      let vy = -Math.sqrt(2 * gravity * distance) * factor;
+
+      let vx = (Math.random() - 0.5) * 80; // slight drift
+
+      // apply global speed scaling to horizontal drift only (vertical computed from scaled gravity)
+      vx *= SPEED_SCALE;
+
+      // calculate fuse from time-to-apex plus a small jitter (adjusted for scaled speeds)
+      const timeToApex = (-vy) / gravity; // seconds
+      const fuse = Math.max(400, timeToApex * 1000 + 200 + Math.random() * 400);
+
+      rockets.push({ x, y: canvas.height + 5, vx, vy, fuse, targetY, trail: [] });
     }
 
     // score display
@@ -231,13 +257,14 @@
       const x = ev.clientX - rect.left;
       const y = ev.clientY - rect.top;
 
-      // check for rocket hits (allow small radius)
+      // check for rocket hits (allow larger radius on smaller screens)
+      const hitRadius = Math.min(30, Math.max(18, Math.round(canvas.width / 30)));
       for (let i = rockets.length - 1; i >= 0; i--) {
         const r = rockets[i];
         const dx = r.x - x;
         const dy = r.y - y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 20) {
+        if (dist < hitRadius) {
           // hit - explode early
           createExplosion(r.x, r.y);
           rockets.splice(i, 1);
@@ -253,7 +280,9 @@
     let lastTime = performance.now();
     let lastLaunch = performance.now() - 900; // allow immediate launch
     const launchInterval = 900; // ms
-    const gravity = 500; // px/s^2 downward pull
+    // make overall motion slower for easier clicking on mobile
+    const SPEED_SCALE = 0.5; // 0.5 = 50% speed
+    const gravity = 500 * SPEED_SCALE; // px/s^2 downward pull (scaled)
 
     function animate(now) {
       const delta = now - lastTime; // use real elapsed time so particles/rockets dissipate while tab isn't focused
@@ -295,8 +324,8 @@
         ctx.arc(r.x, r.y, 3, 0, Math.PI * 2);
         ctx.fill();
 
-        // conditions to auto-explode: fuse expired, reached high altitude (near top), or very fast downward speed
-        if (r.fuse <= 0 || r.y < canvas.height * 0.25 || r.vy > 1000) {
+        // conditions to auto-explode: fuse expired, reached its target height (above card), or very fast downward speed
+        if (r.fuse <= 0 || (r.targetY !== undefined && r.y < r.targetY) || r.vy > 1000) {
           createExplosion(r.x, r.y);
           rockets.splice(i, 1);
         }
