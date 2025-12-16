@@ -62,7 +62,7 @@
       opacity: 0.95;
     }
 
-    .year {
+    .from {
       margin-top: 1.75rem;
       font-size: 0.85rem;
       letter-spacing: 0.3em;
@@ -103,9 +103,9 @@
   <canvas id="fireworks"></canvas>
 
   <div class="card">
-    <h1 id="headline"></h1>
+    <h1 id="headline">Merry Christmas 🎄</h1>
     <p id="message"></p>
-    <div class="year" id="year"></div>
+    <div class="from" id="from"></div>
   </div>
 
   <script>
@@ -118,32 +118,26 @@
       { bg1: '#003049', bg2: '#d62828', bg3: '#fcbf49', accent: '#eae2b7' }, // classic kiwi summer
       { bg1: '#2d6a4f', bg2: '#52b788', bg3: '#b7e4c7', accent: '#ffd166' }, // lush green outdoors
       { bg1: '#2b0a00', bg2: '#6a040f', bg3: '#faa307', accent: '#ffba08' }, // friends & family around the brazier fire
-      { bg1: '#fff1f2', bg2: '#ffd6e0', bg3: '#ff9aa2', accent: '#c9184a' }, // pavlova, strawberries & cream
       { bg1: '#1b5e20', bg2: '#4caf50', bg3: '#e8f5e9', accent: '#f5f5dc' }, // back yard cricket
       { bg1: '#3a0f0f', bg2: '#7f1d1d', bg3: '#e9d8a6', accent: '#fca311' }  // Christmas lunch: ham, roast pork & potatoes      
     ];
 
-    const headlines = [
-      'Merry Christmas 🎄',
-      'Kiwi Christmas ☀️',
-    ];
-
     const messages = [
-        'Christmas, but make it shorts and jandals.',
+        'Don\'t forget the shorts and jandals.',
         'Wishing you sunburn-free joy and cold drinks.',
         'May the BBQ be hot and the beer be cold.',
         'Summer nights, good company, Merry Christmas!',
-        'From our tree to your summer holiday.',
         'Wishing you a very Merry Christmas!',   
         'It\'s all about the Scorched Almonds.',  
-        'I hope this is the bestest Xmas ever!',
+        'I hope you have the bestest Xmas ever!',
         'Calories don\'t count at Christmas ;-)',  
         'Sunshine, family and Christmas mince pies.',  
-        'Pavlova, kiwifruit, strawberries and cream. Bliss!',  
+        'Pavlova, kiwifruit, strawberries and cream.',  
         'Here\'s to a Christmas full of laughter and love.',
         'Wishing you a festive season full of fun and sun.',
         'Ham, roast pork and potatoes. Yum!',
-        'Back yard cricket with family and friends.',
+        'Backyard cricket with family and friends.',
+        'Go on, have seconds!',
     ];
 
     const pick = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -153,10 +147,9 @@
     document.documentElement.style.setProperty('--bg2', theme.bg2);
     document.documentElement.style.setProperty('--bg3', theme.bg3);
     document.documentElement.style.setProperty('--accent', theme.accent);
-
-    document.getElementById('headline').textContent = pick(headlines);
+    
     document.getElementById('message').textContent = pick(messages);
-    document.getElementById('year').textContent = `MERRY CHRISTMAS ${new Date().getFullYear()}`;
+    document.getElementById('from').textContent = `From the Lakers ${new Date().getFullYear()}`;
 
     /* --------------------
        TWINKLING STARS
